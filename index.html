@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>生成随机迷宫</title>
+  <!DOCTYPE html>
+  <html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>生成迷宫</title>
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        margin: 0;
+        text-align: center;
+        background-color: lightgray;
+      }
+
+      #maze {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: inline-block;
+      }
+
+      .line {
+        height: .9375rem;
+        width: 100%;
+      }
+
+      .wall,
+      .road,
+      .path {
+        width: .9375rem;
+        height: .9375rem;
+        display: inline-block;
+      }
+
+      .wall {
+        background: #45494c;
+      }
+
+      .road {
+        background: #ffffff;
+      }
+
+      .path {
+        background: #f57a7a;
+      }
+    </style>
+  </head>
+
+<body>
+  <div id="maze"></div>
+</body>
+
+</html>
+
+<script>
+  const basicMaze = [] // 迷宫数据
+  const visited = [] // 逻辑访问数据
+  const move = [[-1, 0], [0, 1], [1, 0], [0, -1]] // 偏移量
+  const pathVisited = []//求解访问数据(栈)
+  let exitX = 0
+  let exitY = 0
+
+  // 初始化迷宫问题的数据  注意这里的迷宫行数和列数只能是奇数
+  function initMazeInfo(x, y) {
+    for (let i = 0; i < x; i++) {
+      // 将迷宫数据全部初始化为1
+      let line = new Array(y).fill(1)
+      // 将逻辑访问数据全部设置为未被访问
+      visited.push(new Array(y).fill(false))
+      // 将点全部设置为未被访问
+      pathVisited.push(new Array(y).fill(false))
+      // 每隔一个位置设置一个墙体(这里就可以自动设置最外沿的墙体)
+      if (i % 2 === 1) {
+        for (let j = 0; j < line.length; j++) {
+          if (j % 2 === 1) {
+            line[j] = 0
+          }
+        }
+      }
+      basicMaze.push(line)
+    }
+  }
+
+  // 渲染迷宫的dom结构
+  function renderMazeDom() {
+    // 定义一个数组存放 墙体 道路 走过的路径 这三个类名  方便后续渲染dom结构时给div添加类名
+    // 这里的 road和wall 不可以互换位置 因为0表示道路 1表示墙体
+    const className = ['road', 'wall', 'path']
+    // 存放要渲染的dom结构
+    let dom = ''
+    for (let i = 0; i < basicMaze.length; i++) {
+      // 给迷宫每一行添加一个line类名
+      let line = '<div class="line">'
+      for (let j = 0; j < basicMaze[i].length; j++) {
+        // basicMaze[i][j] 如果是0则取className里面的第一个类名(road) 如果是1则取className里面的第一个类名(wall)
+        line += `<div class="${className[basicMaze[i][j]]}""></div>`
+      }
+      // 结束一行的渲染
+      line += '</div>'
+      dom += line
+    }
+    // 选取出id为maze的dom元素
+    const mazeDom = document.querySelector('#maze')
+    // 根据basicMaze的长度动态设置maze盒子的高度
+    mazeDom.style.height = basicMaze.length * .9375 + 'rem'
+    // 根据basicMaze[0]的长度动态设置maze盒子的宽度
+    mazeDom.style.width = basicMaze[0].length * .9375 + 'rem'
+    // 将dom字符串解析为html标签 填充到mazeDom中
+    mazeDom.innerHTML = dom
+  }
+
+  // 判断是否越界
+  function isRange(x, y) {
+    return x > 0 && x < basicMaze.length - 1 && y > 0 && y < basicMaze[0].length - 1
+  }
+
+  function* createMaze() {
+    // 用于存放点的坐标
+    let stack = []
+    // 最先从(1,1)点开始
+    stack.push({ x: 1, y: 1 })
+    // 将(1,1)点设置为已被访问
+    visited[1][1] = true
+    // 循环设置路径
+    while (stack.length > 0) {
+      // 用于存放从数组中取出的点
+      let curPos
+      // 每次都随机取数组中第一个元素 或者 最后一个元素
+      if (Math.random() > 0.5) {
+        curPos = stack.shift()
+      } else {
+        curPos = stack.pop()
+      }
+      // 将4个方向全部都试探一遍
+      for (let i = 0; i < 4; i++) {
+        // 新坐标的位置 = 取出的点的坐标(x/y) + 位移量(x/y)   这里每次走两步
+        let newX = curPos.x + move[i][0] * 2
+        let newY = curPos.y + move[i][1] * 2
+        // 坐标没有越界 且 没有被访问过
+        if (isRange(newX, newY) && !visited[newX][newY]) {
+          // yield 关键字用于暂停和恢复生成器函数
+          yield
+          basicMaze[(newX + curPos.x) / 2][(newY + curPos.y) / 2] = 0
+          // 随机将新坐标设置为数组的第一个元素 或者 最后一个元素
+          if (Math.random() > 0.5) {
+            stack.push({ x: newX, y: newY })
+          } else {
+            stack.unshift({ x: newX, y: newY })
+          }
+          // 将新坐标设置为已经被访问过
+          visited[newX][newY] = true
+        }
+      }
+    }
+  }
+
+  // 体现出渲染过程  否则会一瞬间渲染完
+  let answerStep = 0
+  // 使用定时器渲染地图生成以及路径探索的过程
+  function showRender(x, y, t) {
+    setTimeout(() => {
+      basicMaze[x][y] = t
+      renderMazeDom()
+    }, answerStep++ * 30);
+  }
+
+  function getMazePath(x, y) {
+    // 判断是否越界
+    if (isRange(x, y)) {
+      pathVisited[x][y] = true
+      // 渲染当前解路径 2代表解路径
+      showRender(x, y, 2)
+      // 判断是否为出口
+      if (x === exitX && y === exitY) {
+        return true
+      }
+      // 向四个方向进行探索
+      for (let i = 0; i < 4; i++) {
+        let newX = x + move[i][0]
+        let newY = y + move[i][1]
+        // 没有越界 该点是路 没有被访问过
+        if (isRange(newX, newY) && basicMaze[newX][newY] === 0 && !pathVisited[newX][newY]) {
+          if (getMazePath(newX, newY)) {
+            return true
+          }
+        }
+      }
+      // 没有return终止，回溯 遍历完四个方向都没有找到出口和其他能行的路(死胡同) 则表示该点不是解的路径上的点 还原为路
+      showRender(x, y, 0)
+      return false
+    }
+  }
+
+  // 初始化19*19的地图
+  initMazeInfo(19, 19)
+  // 设置入口为(1,1)点
+  basicMaze[1][1] = 0
+  // 设置出口为右下角点
+  exitX = basicMaze[0].length - 2
+  exitY = basicMaze.length - 2
+  basicMaze[exitX][exitY] = 0
+
+  // 渲染初始地图的dom结构
+  renderMazeDom()
+
+  // 处理生成迷宫
+  const createStep = createMaze()
+  const t = setInterval(() => {
+    // next() 以恢复其执行
+    let n = createStep.next()
+    // 渲染随机生成的地图
+    renderMazeDom()
+    /**
+     * next()方法返回一个对象，这个对象包含两个属性：value 和 done
+     * value 属性表示本次 yield 表达式的返回值
+     * done 属性为布尔类型，表示生成器后续是否还有 yield 语句，这里表示随机地图是否以及生成完毕
+    */
+    if (n.done) {
+      // 求解迷宫路径
+      getMazePath(1, 1)
+      // 清除定时器
+      clearInterval(t)
+    }
+    // 每10毫秒调用一次createMaze函数
+  }, 10)
+</script>
+
+</html>
