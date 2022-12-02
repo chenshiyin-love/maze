@@ -173,7 +173,7 @@
     setTimeout(() => {
       basicMaze[x][y] = t
       renderMazeDom()
-    }, answerStep++ * 30);
+    }, answerStep++ * 70);
   }
 
   function getMazePath(x, y) {
@@ -234,7 +234,7 @@
       clearInterval(t)
     }
     // 每10毫秒调用一次createMaze函数
-  }, 10)
+  }, 20)
 </script>
 
 </html>
